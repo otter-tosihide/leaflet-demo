@@ -4,12 +4,39 @@ import 'leaflet/dist/leaflet.css'
 import './App.css'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Map, Satellite, Cloud } from 'lucide-react'
+
+const aerialProviders = {
+  esri: {
+    name: 'Esri World Imagery',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles © Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+  },
+  gsi: {
+    name: '国土地理院 航空写真',
+    url: 'https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg',
+    attribution: '© 国土地理院 (Geospatial Information Authority of Japan)'
+  },
+  gsi_std: {
+    name: '国土地理院 標準地図',
+    url: 'https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png',
+    attribution: '© 国土地理院 (Geospatial Information Authority of Japan)'
+  },
+  gsi_pale: {
+    name: '国土地理院 淡色地図',
+    url: 'https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png',
+    attribution: '© 国土地理院 (Geospatial Information Authority of Japan)'
+  }
+} as const
+
+type AerialProviderKey = keyof typeof aerialProviders
 
 function App() {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<L.Map | null>(null)
   const [mapType, setMapType] = useState<'normal' | 'satellite'>('normal')
+  const [aerialProvider, setAerialProvider] = useState<AerialProviderKey>('esri')
   const [showRainRadar, setShowRainRadar] = useState(false)
   const rainRadarLayerRef = useRef<L.TileLayer | null>(null)
 
@@ -22,14 +49,14 @@ function App() {
       attribution: '© OpenStreetMap contributors'
     })
 
-    const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      attribution: 'Tiles © Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
-    })
 
     if (mapType === 'normal') {
       osmLayer.addTo(map)
     } else {
-      satelliteLayer.addTo(map)
+      const provider = aerialProviders[aerialProvider]
+      L.tileLayer(provider.url, {
+        attribution: provider.attribution
+      }).addTo(map)
     }
 
     mapInstanceRef.current = map
@@ -63,15 +90,16 @@ function App() {
         attribution: '© OpenStreetMap contributors'
       }).addTo(mapInstanceRef.current)
     } else {
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Tiles © Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+      const provider = aerialProviders[aerialProvider]
+      L.tileLayer(provider.url, {
+        attribution: provider.attribution
       }).addTo(mapInstanceRef.current)
     }
 
     if (showRainRadar && rainRadarLayerRef.current) {
       rainRadarLayerRef.current.addTo(mapInstanceRef.current)
     }
-  }, [mapType])
+  }, [mapType, aerialProvider])
 
   useEffect(() => {
     if (!mapInstanceRef.current) return
@@ -101,7 +129,7 @@ function App() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap items-center">
             <Button
               variant={mapType === 'normal' ? 'default' : 'outline'}
               onClick={() => setMapType('normal')}
@@ -118,6 +146,22 @@ function App() {
               <Satellite className="h-4 w-4" />
               航空写真
             </Button>
+            
+            {mapType === 'satellite' && (
+              <Select value={aerialProvider} onValueChange={(value: AerialProviderKey) => setAerialProvider(value)}>
+                <SelectTrigger className="w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(aerialProviders).map(([key, provider]) => (
+                    <SelectItem key={key} value={key}>
+                      {provider.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            
             <Button
               variant={showRainRadar ? 'default' : 'outline'}
               onClick={() => setShowRainRadar(!showRainRadar)}
